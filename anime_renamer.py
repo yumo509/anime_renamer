@@ -2835,7 +2835,7 @@ def main():
     print("动漫批量重命名工具 v3.5.0")
     print("适配飞牛NAS / Plex / Emby / Jellyfin 刮削标准")
     print("=" * 60)
-    print("  版权: (c) 2025-2026 yumo509 <yumo509@foxmail.com>")
+    print("  版权: (c) 2026 yumo509 <yumo509@foxmail.com>")
     print("  本脚本由 AI 模型 (Reasonix/Claude) 辅助生成")
     print("  免责声明:")
     print("    本脚本仅供个人学习、研究和合法使用。")
