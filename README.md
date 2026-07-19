@@ -42,7 +42,7 @@ python anime_renamer.py
 动漫批量重命名工具
 适配飞牛NAS / Plex / Emby / Jellyfin 刮削标准
 ============================================================
-  版权: (c) 2025-2026 yumo509 <yumo509@foxmail.com>
+  版权: (c) 2026 yumo509 <yumo509@foxmail.com>
   本脚本由 AI 模型 (Reasonix/Claude) 辅助生成
   免责声明:
     本脚本仅供个人学习、研究和合法使用。
