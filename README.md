@@ -16,10 +16,10 @@
 pip install requests
 
 # 2. 预览模式（先看效果，不实际修改文件）
-python anime_renamer_v3.5.0.py Y:\backups\downloads --test
+python anime_renamer.py Y:\backups\downloads --test
 
 # 3. 交互式执行
-python anime_renamer_v3.5.0.py
+python anime_renamer.py
 ```
 
 ## ✨ 功能特点
@@ -319,7 +319,7 @@ Y:\backups\downloads\
 1. **仓库结构**：
    ```
    anime-renamer/
-   ├── anime_renamer_v3.5.0.py
+   ├── anime_renamer.py
    ├── README.md
    ├── LICENSE
    └── .gitignore
