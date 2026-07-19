@@ -1,5 +1,5 @@
-# 动漫批量重命名工具
 # anime_renamer
+# 动漫批量重命名工具
 
 > 适配飞牛NAS / Plex / Emby / Jellyfin 刮削标准
 
