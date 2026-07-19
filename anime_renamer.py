@@ -4,7 +4,7 @@
 动漫批量重命名工具 v3.5.0 - 适配飞牛NAS / Plex / Emby / Jellyfin 刮削
 
 版权声明 / Copyright:
-  (c) 2025-2026 yumo509. All rights reserved.
+  (c) 2026 yumo509. All rights reserved.
   作者: yumo509 <yumo509@foxmail.com>
   本脚本由 AI 模型 (Reasonix/Claude) 辅助生成，经人工反复调试和验证。
 
