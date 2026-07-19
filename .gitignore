@@ -1,0 +1,9 @@
+rename_log.txt
+__pycache__/
+*.pyc
+test_*/
+test_anime/
+test_comicat/
+test_slime/
+test_v25/
+DELIVERY_*.txt
