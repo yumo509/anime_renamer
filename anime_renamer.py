@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-动漫批量重命名工具 v3.5.0 - 适配飞牛NAS / Plex / Emby / Jellyfin 刮削
+动漫批量重命名工具 v3.8.0 - 适配飞牛NAS / Plex / Emby / Jellyfin 刮削
 
 版权声明 / Copyright:
   (c) 2026 yumo509. All rights reserved.
@@ -28,24 +28,19 @@
   11. 文件夹名可选带年份，减少同名匹配错误
   12. PV/OP/ED 等宣传视频自动识别
 
-v3.5.0 更新内容：
-  - 🔧 移除romaji+JP的5%底线（罗马音vs日文原名天然0%相似度不应过滤）
-  - 🔧 修复执行模式 WinError 183：根文件处理路径缺少冲突检测
-  - 🔧 V2 版本文件自动加 _2 后缀，不再覆盖普通版
+v3.8.0 更新内容：
+  - 🆕 目录结构导出到 tree_log.txt（Win用tree/Linux用find）
+  - 🎬 外挂字幕同步重命名（.ass/.srt等9种格式，多语言标记保留）
+  - 💻 命令行参数支持 + 位置参数兼容
+  - 🔑 交互窗口TMDB Key引导（回车跳过用Bangumi）
+  - 🐛 修复UnboundLocalError + prefix匹配验证
 
-v3.4.0 更新内容：
-  - 🆕 跨语言零字符过滤（防GAP→超能迷你队等英文→纯中文误匹配）
-  - 🆕 归集文件夹名保留Season信息（如S02/S03）
+v3.7.0 更新内容：
+  - 🎬 外挂字幕同步 + 多语言标记（.chs/.cht/.jpn等）
+  - 💻 命令行参数 + TMDB Key引导
 
-v3.3.0 更新内容：
-  - 🔄 auto模式TMDB优先（Plex/Emby/Jellyfin默认刮削源）
-  - 🆕 双源比较：TMDB+Bangumi都抓取，选更优名称
-  - 🔧 TMDB key无效时自动切换Bangumi
 
-v3.2.0 更新内容：
-  - 添加版权和免责声明
-  - 原始名称阈值降至10%（更强的API误匹配过滤）
-  - 根文件路径增加文件夹季数修正
+更早版本的详细更新日志请查看 CHANGELOG.md
 """
 
 import os
@@ -108,6 +103,9 @@ BANGUMI_BASE_URL = "https://api.bgm.tv"
 
 # 支持的视频扩展名
 VIDEO_EXTENSIONS = {'.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.ts', '.m4v'}
+
+# 支持的字幕扩展名（视频重命名时同步改名）
+SUBTITLE_EXTENSIONS = {'.ass', '.srt', '.sup', '.ssa', '.sub', '.vtt', '.pgs', '.smi', '.idx'}
 
 # 语言设置
 TMDB_LANGUAGE = "zh-CN"
@@ -1286,6 +1284,48 @@ def is_video_file(filename: str) -> bool:
     return Path(filename).suffix.lower() in VIDEO_EXTENSIONS
 
 
+def is_subtitle_file(filename: str) -> bool:
+    """判断是否为字幕文件"""
+    return Path(filename).suffix.lower() in SUBTITLE_EXTENSIONS
+
+
+def rename_matching_subtitles(video_src: Path, video_dst: Path, dry_run: bool = False):
+    """视频重命名后，同步重命名同目录下同名的外挂字幕文件
+    支持多语言标记：.chs(简中) .cht(繁中) .jpn(日语) .eng(英语) 等
+    例如: 视频 S01E01.mkv → 字幕 S01E01.chs.ass, S01E01.cht.ass"""
+    src_dir = video_src.parent
+    dst_dir = video_dst.parent
+    src_stem = video_src.stem
+    dst_stem = video_dst.stem
+    
+    for item in src_dir.iterdir():
+        if not item.is_file() or not is_subtitle_file(item.name):
+            continue
+        
+        item_stem = item.stem  # e.g. "Anime - 01.chs" for "Anime - 01.chs.ass"
+        
+        # 检查是否为该视频的字幕（前缀匹配）
+        if item_stem == src_stem:
+            lang_tag = ""
+        elif item_stem.startswith(src_stem + '.') and len(item_stem) > len(src_stem) + 1:
+            suffix_part = item_stem[len(src_stem) + 1:]
+            # 语言标记验证：字母数字.&_-组成，长度<=20
+            if re.match(r'^[a-zA-Z0-9.&_-]+$', suffix_part) and len(suffix_part) <= 20:
+                lang_tag = '.' + suffix_part
+            else:
+                continue
+        else:
+            continue
+        
+        new_sub_path = dst_dir / f"{dst_stem}{lang_tag}{item.suffix}"
+        if not dry_run and not new_sub_path.exists():
+            try:
+                item.rename(new_sub_path)
+            except Exception:
+                pass
+        elif dry_run:
+            print(f"    [字幕同步] {item.name} -> {new_sub_path.name}")
+
 def sanitize_filename(name: str) -> str:
     """清理文件名非法字符（Windows）"""
     # Windows 非法字符：< > : " / \ | ? *
@@ -2314,6 +2354,7 @@ class AnimeRenamer:
                     new_path = folder / new_name
                     if video_file.name != new_name:
                         video_file.rename(new_path)
+                        rename_matching_subtitles(video_file, new_path, self.dry_run)
                     self.files_renamed += 1
                 except Exception as e:
                     print(f"    [!] 重命名失败: {e}")
@@ -2389,6 +2430,7 @@ class AnimeRenamer:
                     new_path = dst_folder / new_name
                     if video_file.name != new_name:
                         video_file.rename(new_path)
+                        rename_matching_subtitles(video_file, new_path, self.dry_run)
                     self.files_renamed += 1
                 except Exception as e:
                     print(f"    [!] 重命名失败: {e}")
@@ -2692,6 +2734,7 @@ class AnimeRenamer:
                             suffix_counter += 1
                         new_path = season_folder / new_name
                         video_file.rename(new_path)
+                        rename_matching_subtitles(video_file, new_path, self.dry_run)
                         self.files_renamed += 1
                     except Exception as e:
                         print(f"    [!] 移动/重命名失败: {e}")
@@ -2738,6 +2781,7 @@ class AnimeRenamer:
                                 suffix_counter += 1
                             new_path = season_00_folder / new_name
                             video_file.rename(new_path)
+                            rename_matching_subtitles(video_file, new_path, self.dry_run)
                             self.files_renamed += 1
                         except Exception as e:
                             print(f"      [!] 移动/重命名失败: {e}")
@@ -2748,7 +2792,7 @@ class AnimeRenamer:
     def run(self):
         """运行重命名任务"""
         print("=" * 60)
-        print("动漫批量重命名工具 v3.5.0")
+        print("动漫批量重命名工具 v3.8.0")
         print("适配飞牛NAS / Plex / Emby / Jellyfin 刮削标准")
         print("=" * 60)
         print(f"目标路径: {self.root_path}")
@@ -2784,6 +2828,9 @@ class AnimeRenamer:
         
         # 保存变更日志
         self.save_log()
+        
+        # 保存目录结构
+        self.save_tree()
     
     def print_summary(self):
         """打印统计摘要"""
@@ -2811,7 +2858,7 @@ class AnimeRenamer:
                 f.write("动漫重命名变更日志\n")
                 f.write(f"生成时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"模式: {'预览' if self.dry_run else '执行'}\n")
-                f.write(f"版本: v3.5.0\n")
+                f.write(f"版本: v3.8.0\n")
                 f.write("=" * 60 + "\n\n")
                 
                 for change in self.changes:
@@ -2829,12 +2876,76 @@ class AnimeRenamer:
             print(f"\n变更日志已保存到: {log_path}")
         except Exception as e:
             print(f"\n保存日志失败: {e}")
+    
+    def save_tree(self):
+        """保存目录结构到 tree_log.txt（自动识别 Windows/Linux）"""
+        tree_path = self.root_path / "tree_log.txt"
+        try:
+            system = platform.system()
+            if system == 'Windows':
+                # Windows: 使用 tree 命令
+                result = os.popen(f'tree /F /A "{self.root_path}"').read()
+            else:
+                # Linux: 使用 find 命令
+                result = os.popen(f'find "{self.root_path}" -type f | sort').read()
+            
+            with open(tree_path, 'w', encoding='utf-8') as f:
+                f.write(f"目录结构快照\n")
+                f.write(f"生成时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"路径: {self.root_path}\n")
+                f.write(f"系统: {system}\n")
+                f.write("=" * 60 + "\n\n")
+                f.write(result)
+            
+            print(f"目录结构已保存到: {tree_path}")
+        except Exception as e:
+            print(f"\n保存目录结构失败: {e}")
 
 
 def main():
     """主函数"""
+    global TMDB_API_KEY
+    import webbrowser
+    
+    # ========== 命令行参数解析（非交互模式） ==========
+    if len(sys.argv) > 1 and sys.argv[1] not in ['--help', '-h']:
+        import argparse
+        parser = argparse.ArgumentParser(description='动漫批量重命名工具 v3.6.0')
+        parser.add_argument('--path', '-p', type=str, nargs='?', help='动漫文件夹路径')
+        parser.add_argument('path_pos', nargs='?', help='动漫文件夹路径（可直接传位置参数）')
+        parser.add_argument('--key', '-k', type=str, help='TMDB API Key')
+        parser.add_argument('--test', '-t', action='store_true', help='预览模式')
+        parser.add_argument('--source', '-s', choices=['auto','tmdb','bangumi'], default='auto', help='数据源')
+        parser.add_argument('--proxy', type=str, default='', help='代理地址')
+        args = parser.parse_args()
+        
+        if args.path or args.path_pos:
+            root_path = args.path or args.path_pos
+            tmdb_key = args.key or TMDB_API_KEY
+            dry_run = args.test
+            data_source = args.source
+            proxy = args.proxy
+            
+            print("=" * 60)
+            print("动漫批量重命名工具 v3.8.0")
+            print("=" * 60)
+            print(f"路径: {root_path}  模式: {'预览' if dry_run else '执行'}  数据源: {data_source}")
+            print("=" * 60)
+            
+            renamer = AnimeRenamer(
+                root_path=root_path, tmdb_api_key=tmdb_key,
+                dry_run=dry_run, proxy=proxy, data_source=data_source,
+                include_year=True, special_naming="s00e01"
+            )
+            renamer.run()
+            return
+        else:
+            print("请提供 --path 参数指定动漫文件夹路径")
+            return
+    
+    # ========== 交互模式 ==========
     print("=" * 60)
-    print("动漫批量重命名工具 v3.5.0")
+    print("动漫批量重命名工具 v3.8.0")
     print("适配飞牛NAS / Plex / Emby / Jellyfin 刮削标准")
     print("=" * 60)
     print("  版权: (c) 2026 yumo509 <yumo509@foxmail.com>")
@@ -2854,6 +2965,15 @@ def main():
     if not has_tmdb:
         print("提示：未配置 TMDB API Key，将默认使用 Bangumi 数据源")
         print("     Bangumi 是国内动漫数据库，无需 API Key，访问速度快")
+        print("     如需使用 TMDB（推荐，Plex/Emby/Jellyfin 默认刮削源）：")
+        print("     1. 访问 https://www.themoviedb.org/settings/api 申请 Key")
+        print("     2. 在下方输入已有的 TMDB API Key")
+        print("     3. 直接回车跳过，自动使用 Bangumi 数据源")
+        user_key = input("     输入 TMDB API Key（回车跳过→使用 Bangumi）: ").strip()
+        if user_key:
+            TMDB_API_KEY = user_key
+            has_tmdb = True
+            print("     ✅ TMDB API Key 已设置")
         print()
     
     # 获取路径
@@ -2875,9 +2995,15 @@ def main():
     if data_source_choice == "2":
         data_source = "tmdb"
         if not has_tmdb:
-            print("\n错误：未配置 TMDB API Key！")
-            print("请先在脚本顶部配置 TMDB_API_KEY")
-            return
+            print("\n⚠️  未配置 TMDB API Key！")
+            print("   请访问 https://www.themoviedb.org/settings/api 申请")
+            user_key = input("   输入 TMDB API Key（回车跳过→自动用 Bangumi）: ").strip()
+            if user_key:
+                TMDB_API_KEY = user_key
+                has_tmdb = True
+            else:
+                print("   未输入 Key，自动切换为 Bangumi 数据源")
+                data_source = "bangumi"
     elif data_source_choice == "3":
         data_source = "bangumi"
     else:
