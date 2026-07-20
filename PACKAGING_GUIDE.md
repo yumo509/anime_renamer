@@ -1,6 +1,6 @@
 # 打包指南 — 将 Python 脚本打包为 EXE
 
-本文档详细说明如何将 `anime_renamer_v3.6.0.py` 打包为独立的 Windows `.exe` 文件。
+本文档详细说明如何将 `anime_renamer.py` 打包为独立的 Windows `.exe` 文件。
 
 ## 前置条件
 
@@ -30,17 +30,17 @@ pip install requests pyinstaller
 
 **单文件 EXE（推荐，方便分发）：**
 ```powershell
-pyinstaller --onefile --console --name "anime_renamer" anime_renamer_v3.6.0.py
+pyinstaller --onefile --console --name "anime_renamer" anime_renamer.py
 ```
 
 **带图标（可选）：**
 ```powershell
-pyinstaller --onefile --console --icon=icon.ico --name "anime_renamer" anime_renamer_v3.6.0.py
+pyinstaller --onefile --console --icon=icon.ico --name "anime_renamer" anime_renamer.py
 ```
 
 **减小体积（可选，需先 `pip install upx`）：**
 ```powershell
-pyinstaller --onefile --console --name "anime_renamer" --upx-dir="C:\upx" anime_renamer_v3.6.0.py
+pyinstaller --onefile --console --name "anime_renamer" --upx-dir="C:\upx" anime_renamer.py
 ```
 
 ### 3. 输出位置
@@ -64,7 +64,7 @@ dist\anime_renamer.exe
 
 ### 打包命令
 ```bash
-pyinstaller --onefile --console --name "anime_renamer" anime_renamer_v3.6.0.py
+pyinstaller --onefile --console --name "anime_renamer" anime_renamer.py
 ```
 
 ### 输出位置
