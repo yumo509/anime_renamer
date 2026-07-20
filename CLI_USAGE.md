@@ -43,22 +43,22 @@
 
 ```powershell
 # 最简用法：预览模式
-python anime_renamer_v3.8.0.py --path "Y:\backups\downloads" --test
+python anime_renamer.py --path "Y:\backups\downloads" --test
 
 # 位置参数兼容（旧用法，路径直接写在后面）
-python anime_renamer_v3.8.0.py "Y:\backups\downloads" --test
+python anime_renamer.py "Y:\backups\downloads" --test
 
 # 使用 TMDB + 指定 Key + 执行模式
-python anime_renamer_v3.8.0.py --path "Y:\backups\downloads" --key "你的TMDB_KEY" --source tmdb
+python anime_renamer.py --path "Y:\backups\downloads" --key "你的TMDB_KEY" --source tmdb
 
 # Linux / NAS 环境
-python3 anime_renamer_v3.8.0.py --path "/mnt/nas/downloads" --test
+python3 anime_renamer.py --path "/mnt/nas/downloads" --test
 
 # 使用代理
-python anime_renamer_v3.8.0.py --path "Y:\anime" --test --proxy "http://127.0.0.1:7890"
+python anime_renamer.py --path "Y:\anime" --test --proxy "http://127.0.0.1:7890"
 
 # 组合参数
-python anime_renamer_v3.8.0.py -p "Y:\anime" -k "abc123" -s tmdb -t
+python anime_renamer.py -p "Y:\anime" -k "abc123" -s tmdb -t
 ```
 
 ---
@@ -86,7 +86,7 @@ python anime_renamer_v3.8.0.py -p "Y:\anime" -k "abc123" -s tmdb -t
 **不带任何参数运行时进入交互模式**，显示完整版权声明和逐项配置菜单：
 
 ```powershell
-python anime_renamer_v3.8.0.py
+python anime_renamer.py
 # 或
 .\anime_renamer.exe
 ```
@@ -99,7 +99,7 @@ python anime_renamer_v3.8.0.py
 
 ```powershell
 pip install requests pyinstaller
-pyinstaller --onefile --console --name "anime_renamer" anime_renamer_v3.8.0.py
+pyinstaller --onefile --console --name "anime_renamer" anime_renamer.py
 # EXE 输出在 dist\anime_renamer.exe
 ```
 
