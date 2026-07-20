@@ -4,6 +4,49 @@
 
 ---
 
+## [3.8.0] - 2026-07-20
+
+### 🆕 新增
+- **目录结构导出**：运行后自动将目录结构保存到 `tree_log.txt`（Windows 用 `tree /F /A`，Linux 用 `find` + `sort`）
+- 语言标记 regex 加 `.` 支持（`.chs.cht` 等双语言标签，如中日双语字幕）
+### 🔧 优化
+- 前缀匹配增加语言标记验证（正则 `^[a-zA-Z0-9.&_-]+$`，长度 ≤20），防止误匹配非字幕文件
+- dry-run 模式下打印 `[字幕同步]` 预览信息
+
+
+## [3.7.0] - 2026-07-20
+
+### 🎬 新增
+- **外挂字幕同步重命名**：视频改名后自动同步重命名同名的外挂字幕文件（`.ass`/`.srt`/`.sup`/`.ssa`/`.sub`/`.vtt`/`.pgs`/`.smi`/`.idx` 共 9 种格式）
+- **字幕多语言标记支持**：自动识别并保留语言标记（`.chs` 简体中文、`.cht` 繁体中文、`.jpn` 日语、`.eng` 英语、`.chs&jpn` 简日双语等）。视频改名 `S01E01.mkv` → 字幕同步为 `S01E01.chs.ass`、`S01E01.cht.ass`
+- **命令行参数支持**：`--path`/`--key`/`--test`/`--source`/`--proxy`，支持非交互式运行
+- **位置参数兼容**：向后兼容旧的 `python anime_renamer.py Y:\path --test` 用法
+- **交互窗口 TMDB Key 引导**：无 Key 时提示输入或回车跳过使用 Bangumi；选择 TMDB 源但无 Key 时不再直接退出，改为提示输入或自动切换 Bangumi
+- **打包指南**：`PACKAGING_GUIDE.md`，Windows/Linux PyInstaller 打包详细步骤
+### 🐛 修复
+- 修复 `UnboundLocalError`：`main()` 在交互模式下因 `TMDB_API_KEY` 局部变量未声明 `global` 导致崩溃
+- 字幕同步仅在视频改名成功后执行，失败不阻塞
+
+
+## [3.6.0] - 2026-07-19
+
+### 🔧 修复
+- **移除 romaji+JP 的 5% 底线**：罗马音搜索词（如 "Honzuki no Gekokujou"）与日文原名天然 0% 相似度，不应因此过滤正确匹配
+- **修复执行模式 WinError 183**：`process_root_video_files` 的普通文件和特别篇路径缺少冲突检测，导致 V2 版本文件覆盖普通版。修复后自动加 `_2` 后缀
+- **修复 UnboundLocalError**：`TMDB_API_KEY` 在 `main()` 中被赋值导致 Python 视为局部变量，加 `global` 声明
+### 🆕 新增
+- **展开完整版权和免责声明**：运行时显示完整的 5 条免责条款
+- **跨语言零字符过滤**：英文搜索词 + API 返回纯中文 + 无共同字符 + 原名相似度 < 30% → 跳过（防 GAP→超能迷你队）
+- **归集文件夹名保留 Season 信息**（如 `Honzuki no Gekokujou S04`）
+- **auto 模式 TMDB 优先**：TMDB 是 Plex/Emby/Jellyfin 默认刮削源，优先使用
+- **双源比较**：TMDB 和 Bangumi 都抓取，用 `calculate_similarity` 实时比较选更优名称
+- **TMDB Key 无效自动切换 Bangumi**
+### 🔧 优化
+- 跨语言过滤 + original_similarity <10% 检查增加 romaji+JP 豁免
+- original_similarity 空值守卫
+
+
+
 ## [3.5.0] - 2026-07-19
 ### 🐛 修复
 - 移除 romaji+JP 的 5% 相似度底线
