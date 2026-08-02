@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-动漫批量重命名工具 v3.8.0 - 适配飞牛NAS / Plex / Emby / Jellyfin 刮削
+动漫批量重命名工具 v3.10.0 - 适配飞牛NAS / Plex / Emby / Jellyfin 刮削
 
 版权声明 / Copyright:
   (c) 2026 yumo509. All rights reserved.
@@ -27,6 +27,15 @@
   10. 智能匹配校验，避免匹配错误（原名比对、多维度验证）
   11. 文件夹名可选带年份，减少同名匹配错误
   12. PV/OP/ED 等宣传视频自动识别
+
+
+
+v3.10.0 更新内容：
+  - 🐛 **冲突检测排除源文件自身**：已就位文件不再被误判为冲突而加 `_2` 后缀（修复重复运行不稳定）
+
+v3.9.0 更新内容：
+  - 🆕 **清理重复后缀**：不同字幕组分到不同文件夹后，自动去除内部文件的 `_2`/`_3` 标识（同一文件夹内无重名才去除，有重名则保留）
+  - 🆕 清理逻辑支持预览模式
 
 v3.8.0 更新内容：
   - 🆕 目录结构导出到 tree_log.txt（Win用tree/Linux用find）
@@ -2410,9 +2419,10 @@ class AnimeRenamer:
             new_name = f"{chinese_name_safe} S{target_season:02d}E{episode:02d}{ext}"
             
             # v2.1.7 新增：重名处理，自动加后缀
+            # v3.10.0 修复：排除源文件自身（文件已就位时不误判为冲突）
             base_new_name = new_name
             suffix_counter = 2
-            while new_name in used_filenames or (dst_folder / new_name).exists():
+            while new_name in used_filenames or ((dst_folder / new_name).exists() and (dst_folder / new_name) != video_file):
                 name_without_ext = base_new_name[:-len(ext)]
                 new_name = f"{name_without_ext}_{suffix_counter}{ext}"
                 suffix_counter += 1
@@ -2725,10 +2735,10 @@ class AnimeRenamer:
                     try:
                         season_folder = target_folder / f"Season {target_season:02d}"
                         season_folder.mkdir(exist_ok=True)
-                        # 冲突检测：V2文件等重名处理
+                        # 冲突检测：V2文件等重名处理（排除源文件自身）
                         base_new_name = new_name
                         suffix_counter = 2
-                        while (season_folder / new_name).exists():
+                        while (season_folder / new_name).exists() and (season_folder / new_name) != video_file:
                             name_without_ext = base_new_name[:-len(ext)]
                             new_name = f"{name_without_ext}_{suffix_counter}{ext}"
                             suffix_counter += 1
@@ -2772,10 +2782,10 @@ class AnimeRenamer:
                     else:
                         try:
                             season_00_folder = target_folder / SEASON_00_FOLDER_NAME
-                            # 冲突检测
+                            # 冲突检测（排除源文件自身）
                             base_new_name = new_name
                             suffix_counter = 2
-                            while (season_00_folder / new_name).exists():
+                            while (season_00_folder / new_name).exists() and (season_00_folder / new_name) != video_file:
                                 name_without_ext = base_new_name[:-len(ext)]
                                 new_name = f"{name_without_ext}_{suffix_counter}{ext}"
                                 suffix_counter += 1
@@ -2792,7 +2802,7 @@ class AnimeRenamer:
     def run(self):
         """运行重命名任务"""
         print("=" * 60)
-        print("动漫批量重命名工具 v3.8.0")
+        print("动漫批量重命名工具 v3.10.0")
         print("适配飞牛NAS / Plex / Emby / Jellyfin 刮削标准")
         print("=" * 60)
         print(f"目标路径: {self.root_path}")
@@ -2831,6 +2841,9 @@ class AnimeRenamer:
         
         # 保存目录结构
         self.save_tree()
+        
+        # 清理同一文件夹内多余的 _2/_3 后缀
+        self.cleanup_duplicate_suffixes()
     
     def print_summary(self):
         """打印统计摘要"""
@@ -2858,7 +2871,7 @@ class AnimeRenamer:
                 f.write("动漫重命名变更日志\n")
                 f.write(f"生成时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"模式: {'预览' if self.dry_run else '执行'}\n")
-                f.write(f"版本: v3.8.0\n")
+                f.write(f"版本: v3.10.0\n")
                 f.write("=" * 60 + "\n\n")
                 
                 for change in self.changes:
@@ -2900,6 +2913,57 @@ class AnimeRenamer:
             print(f"目录结构已保存到: {tree_path}")
         except Exception as e:
             print(f"\n保存目录结构失败: {e}")
+    
+    def cleanup_duplicate_suffixes(self):
+        """清理同一文件夹内多余的 _2/_3 后缀
+        当不同字幕组的视频已在不同文件夹中时，去除内部文件的 _2 标识"""
+        print("\n" + "=" * 60)
+        print("清理重复后缀 (_2/_3)...")
+        print("=" * 60)
+        
+        cleaned = 0
+        # 遍历所有 Season 文件夹
+        for season_dir in self.root_path.rglob("Season *"):
+            if not season_dir.is_dir():
+                continue
+            
+            # 收集带 _2/_3 后缀的文件
+            for video_file in season_dir.iterdir():
+                if not video_file.is_file():
+                    continue
+                stem = video_file.stem
+                # 匹配 _2, _3 等后缀
+                match = re.search(r'_(\d{1,2})$', stem)
+                if not match:
+                    continue
+                
+                # 去掉后缀的基础名
+                base_stem = stem[:match.start()]
+                
+                # 构造去掉 _2 的新文件名
+                new_name = f"{base_stem}{video_file.suffix}"
+                new_path = video_file.parent / new_name
+                
+                if new_path.exists():
+                    # 目标文件已存在，保留 _2
+                    continue
+                
+                if not self.dry_run:
+                    try:
+                        video_file.rename(new_path)
+                        self.changes.append(f"清理后缀: {video_file.name} -> {new_name}")
+                        cleaned += 1
+                    except Exception:
+                        pass
+                else:
+                    print(f"  [预览] {video_file.name} -> {new_name}")
+                    cleaned += 1
+        
+        if cleaned > 0:
+            action = "将清理" if self.dry_run else "已清理"
+            print(f"  {action} {cleaned} 个 _2/_3 后缀文件")
+        else:
+            print(f"  无需要清理的 _2/_3 后缀文件")
 
 
 def main():
@@ -2927,7 +2991,7 @@ def main():
             proxy = args.proxy
             
             print("=" * 60)
-            print("动漫批量重命名工具 v3.8.0")
+            print("动漫批量重命名工具 v3.10.0")
             print("=" * 60)
             print(f"路径: {root_path}  模式: {'预览' if dry_run else '执行'}  数据源: {data_source}")
             print("=" * 60)
@@ -2945,7 +3009,7 @@ def main():
     
     # ========== 交互模式 ==========
     print("=" * 60)
-    print("动漫批量重命名工具 v3.8.0")
+    print("动漫批量重命名工具 v3.10.0")
     print("适配飞牛NAS / Plex / Emby / Jellyfin 刮削标准")
     print("=" * 60)
     print("  版权: (c) 2026 yumo509 <yumo509@foxmail.com>")
